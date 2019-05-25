@@ -1,19 +1,32 @@
 ---
-title: Densenet论文笔记
+title: Resnext论文笔记
 tags: 
-        - 深度学习
-        - 目标分类
-        - Densenet
+       - 深度学习
+       - 目标分类
+       - Resnext
 grammar_cjkRuby: true
 ---
+&ensp;&ensp;&ensp;&ensp;作者结合**VGG**堆叠和**Resnet**短路连接的思想提出了更加简单的瓶颈同质多分支结构(即每个分支采用相同的瓶颈结构)和残差连接结构，并将这种分支的个数定义为一个新的维度**cardinality(基)**,记做**C**，这也是**Resnext**名称的由来，**next dimension**。
+<div align=center><img src="./images/resnext_1.png" width = "300" height = "500" align=center/></div>
 
-&ensp;&ensp;&ensp;&ensp;**Densenet**和**Resnet**类似都使用了断路连接的方式，但是**Densenet**做的更加“粗暴”，它将第L层前的每一层的输出都连接到第L层上，这样做可以进行特征复用和使用更少的通道数来减少参数量，第l层的输入为k<sub>0</sub>+k(l-1),输出channel为k，并且称k为增长率。当然这是在**Dense block**中进行的，不然随着网络层数的增加每一层的输入将不断增长。
-<div align=center><img src="./images/densenet_1.png" width = "300" height = "500" align=center/></div>
-&ensp;&ensp;&ensp;&ensp;同时作者还探索到这种稠密连接结构还具有正则化的效果，可以减少过拟合。其中每个Dense Block包含若干个瓶颈结构，每个瓶颈结构由BN-ReLU-Conv（1x1）和BN-ReLU-Conv（3x3）组成，其中1x1的channel数为4k，3x3的channel数为k，论文中的所有3X3的卷积核都通过padding使其特征图大小不变。在每个Block之间由Transition层连接来进行降维，每个Transition层由一个1x1卷积层，2x2的步长为2的平均池化层组成，其中1x1的卷积层的channel数由一个变量&theta;决定，一般设置为0.5，只对Transition层的1X1输出进行压缩(&theta;<1)称为**Densenet-C**,如果对所有的1x1包括瓶颈层的进行压缩称为**Densenet-BC**。
-<div align=center><img src="./images/densenet_2.png" width = "500" height = "500" align=center/></div>
-&ensp;&ensp;&ensp;&ensp;第一层7x7的卷积的输出为2k，在imagenet数据集上作者利用了四个**Dense block**，而在其它数据集作者使用了三个**Dense block**。
-&ensp;&ensp;&ensp;&ensp;其不同结构的对比如下：
-<div align=center><img src="./images/densenet_3.png" width = "500" height = "500" align=center/></div>
-参考：
-  &ensp;https://arxiv.org/abs/1608.06993
+随后作者分别采用将多分支先分别进行1x1卷积再相加等效为对多分支先进行concat再进行1x1卷积，和将低维度的多分支利用**group**卷积来等效来简化网络结构，这时**group**的组数就代表**C**，最终的网络结构与**Resnet**非常像，只是瓶颈结构的3x3卷积使用了组卷积。
+<div align=center><img src="./images/resnext_2.png" width = "500" height = "800" align=center/></div>
+
+这两种等效方式如下：
+1.第一种等效
+&ensp;&ensp;&ensp;&ensp;假设有四个矩阵：A<sub>1</sub>=[1 2],A<sub>2</sub>=[3 4],B<sub>1</sub>=[1 2]<sup>T</sup>,B<sub>2</sub>=[3 4]<sup>T</sup>,则:
+`!$$ A_1*B_1+A_2*B_2 = 5+25 = 30 $$`
+等效为：
+[A<sub>1</sub>,A<sub>2</sub>] = [1 2 3 4],[B<sub>1</sub>,B<sub>2</sub>] = [1 2 3 4]<sup>T</sup>,
+`!$$ [A_1,A_2]*[B_1,B_2] =[1,2,3,4] *[1,2,3,4]^T = 30 $$`
+2.分组卷积
+<div align=center><img src="./images/resnext_3_1.png" width = "300" height = "500" align=center/></div>
+
+假设输入为D<sub>F</sub> x D<sub>F</sub> x M,输出为D<sub>F</sub> x D<sub>F</sub> x N,卷积核的大小为D<sub>K</sub> x D<sub>K</sub>,则组卷积可将计算量压缩为：
+
+`!$$ \frac{D_K*D_K*M*D_F*D_F*N}{(D_K*_D_K*(M\g)*D_F*D_F*(N\g))*g} = \frac{1}{g} $$`
+  &ensp;https://arxiv.org/abs/1611.05431
  **注**：此博客内容为原创，转载请说明出处
+
+
+
