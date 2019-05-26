@@ -54,7 +54,7 @@ grammar_cjkRuby: true
 `!$$ r^k = x^k + y^k $$`
 `!$$ h^k = g^k(r^k) $$`
 <div align=center><img src="./images/DPN_4.png" width = "800" height = "1000" align=center/></div>
-最后论文以**Resnext**为主干网络，将输入通过1x1,3x3,1x1的瓶颈结构，并将最后的输出分为两部分，一部分add，一部分concat。
+最后论文以**Resnext**为主干网络，将输入通过1x1,3x3,1x1的瓶颈结构，并将最后的输出分为两部分，一部分add，一部分concat，还有我认为论文Fig2中带下划线的1x1卷积应该放在3x3之后。
 参考：
   &ensp;https://arxiv.org/abs/1707.01629
  **注**：此博客内容为原创，转载请说明出处
