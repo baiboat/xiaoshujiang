@@ -14,7 +14,7 @@ grammar_cjkRuby: true
 `!$$ h^2 = g^2[f_0^2(h^0)+f_1^2(h^1)] $$`
 `!$$ h^3 = g^3[f_0^3(h^0)+f_1^3(h^1)+f_2^3(h^2)] $$`
 <div align=center><img src="./images/DPN_1.png" width = "600" height = "900" align=center/></div>
-**注**:在**HORNN**中，f<sub>t</sub><sup>k</sup>(·)代表权重W<sub>hk</sub>,g<sup>k</sup>(·)代表非线性变化，如**Rule**或**Sigmoid**，在此处假设<sub>t</sub><sup>k</sup>(·)恒等于f<sub>t</sub>(·)，g<sup>k</sup>(·)相同，但在**HORNN**原文中只有：
+**注**:在**HORNN**中，f<sub>t</sub><sup>k</sup>(·)代表权重W<sub>hk</sub>,g<sup>k</sup>(·)代表非线性变化，如**Rule**或**Sigmoid**，在此处假设f<sub>t</sub><sup>k</sup>(·)恒等于f<sub>t</sub>(·)，g<sup>k</sup>(·)相同，但在**HORNN**原文中只有：
 
 `!$$ f_0^1(·) = f_1^2(·) = f_2^3(·) $$`
 `!$$ f_0^2(·) = f_1^3(·) $$`
@@ -54,6 +54,11 @@ grammar_cjkRuby: true
 `!$$ r^k = x^k + y^k $$`
 `!$$ h^k = g^k(r^k) $$`
 <div align=center><img src="./images/DPN_4.png" width = "800" height = "1000" align=center/></div>
+最后论文以**Resnext**为主干网络，将输入通过1x1,3x3,1x1的瓶颈结构，并将最后的输出分为两部分，一部分add，一部分concat。
+参考：
+  &ensp;https://arxiv.org/abs/1707.01629
+ **注**：此博客内容为原创，转载请说明出处
+
 
 
 
