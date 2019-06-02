@@ -7,24 +7,24 @@ tags:
 grammar_cjkRuby: true
 ---
 
-&ensp;&ensp;&ensp;&ensp;目标检测是cv的一个重要领域，RCNN的出现将目标检测的准确率提高了一个档次，虽然其过程较为复杂和繁琐，现在早已被其它网络所替代，但其中的一些思想一直被其它网络所借鉴。
+&ensp;&ensp;&ensp;&ensp;目标检测是**cv**的一个重要领域，**RCNN**的出现将目标检测的准确率提高了一个档次，虽然其过程较为复杂和繁琐，现在早已被其它网络所替代，但其中的一些思想一直被其它网络所借鉴。
 <!--more-->
-&ensp;&ensp;&ensp;&ensp;接下来从RCNN的训练和检测两个阶段来介绍一下其基本流程：
-###### 一.训练阶段（假设网络的backbone为Alexnet）
-1.在Imagenet数据集上对Alexnet进行预训练，这时最后的分类为1000类。
-2.使用PASCALVOC 2007数据集来进行fine-tune。
-1）首先使用selective search方法从每张图片中提取出2000个建议框，并将每个建议框与该张图片中的所有groung truth计算IOU，这时分两种情况，第一种计算得到的IOU列表中有的大于0.5，有的小于0.5，则将该建议框的Label标为大于0.5中的最大值所对应的ground truth的Label，第二种计算得到的IOU列表中的所有值都小于0.5，则将其Label设置为negative。这时可以建立两个文件夹，第一个文件夹保存正样本，其文件夹下可按类别分为多个自文件夹。第二个文件夹中保存负样本。
+&ensp;&ensp;&ensp;&ensp;接下来从**RCNN**的训练和检测两个阶段来介绍一下其基本流程：
+###### 一.训练阶段（假设网络的**backbone**为**Alexnet**）
+1.在**Imagenet**数据集上对**Alexnet**进行预训练，这时最后的分类为1000类。
+2.使用**PASCALVOC 2007**数据集来进行**fine-tune**。
+1）首先使用**selective search**方法从每张图片中提取出2000个建议框，并将每个建议框与该张图片中的所有**groung truth**计算**IOU**，这时分两种情况，第一种计算得到的**IOU**列表中有的大于0.5，有的小于0.5，则将该建议框的**Label**标为大于0.5中的最大值所对应的**ground truth**的**Label**，第二种计算得到的**IOU**列表中的所有值都小于**0.5**，则将其**Label**设置为**negative**。这时可以建立两个文件夹，第一个文件夹保存正样本，其文件夹下可按类别分为多个自文件夹。第二个文件夹中保存负样本。
 2）预处理，这时共得到N&times;2000个建议框（假设有N张图片），然后对所有的建议框进行resize处理，使用各向异性变形Padding=16（padding的值为建议框像素平均值）对N&times;2000个建议框进行处理最后每个大小为227&times;227（为了符合Alexnet输入大小），并且减去该建议框像素平均值。
-3）进行fine-tune，每个mini-batch取32个正样本（包含所有类别），96个负样本，共128个样例进行训练，此时将最后的分类输出由1000类改为21类（PASCALVOC 2007中共有20类再加上背景类）。
+3）进行**fine-tune**，每个mini-batch取32个正样本（包含所有类别），96个负样本，共128个样例进行训练，此时将最后的分类输出由1000类改为21类（PASCALVOC 2007中共有20类再加上背景类）。
 3.训练SVM分类器
-&ensp;&ensp;&ensp;&ensp;SVM需要为每一个类训练一个分类器，有20类，则共需20个SVM，每一个SVM都是一个2分类，此时可以将ground truth的按类分文件夹分别存储，然后再使用selective search方法对每一张图片生成建议框，将所有IOU小于0.3的建议框的Label标为negative，并将其保存在一个负例文件夹下（当然可以在步骤2的第一步就预先保存下来）。然后分别使用每一类的ground truth为positives和得到的negtive分别训练20个SVM，这个过程首先需要将预处理之后的positives和negtive送入步骤2中已经fine-tune的Alexnet分类器，并将每个全连接的输出保存，即每个positives和negtive样例得到4096&times;1维的向量，然后在用其作为SVM的输入，每个SVM得到一个维度为1的输出（例如分数大于0.5的为positive，反之为negtive）。
-4.训练BBox回归
-&ensp;&ensp;&ensp;&ensp;与训练SVM一样，对每一个目标类分别训练一个BBox回归模型，共20个BBox回归模型，首先使用selective search方法得到每一类IOU大于0.6的建议框，并计算这些建议框与其对应的ground truth的缩放和偏移值t<sup>*</sup>，并按照分类文件夹保存，然后将每一个建议框经过预处理后送入步骤2中fine-tune后的Alexnet,得到每一个pooling 5之后的6&times;6&times;256的特征张量，然后将每一个(特征张量，t<sup>*</sup>)送入回归模型进行训练。
+&ensp;&ensp;&ensp;&ensp;SVM需要为每一个类训练一个分类器，有20类，则共需20个SVM，每一个SVM都是一个2分类，此时可以将ground truth的按类分文件夹分别存储，然后再使用selective search方法对每一张图片生成建议框，将所有IOU小于0.3的建议框的Label标为negative，并将其保存在一个负例文件夹下（当然可以在步骤2的第一步就预先保存下来）。然后分别使用每一类的ground truth为positives和得到的negtive分别使用**standard hard negative mining method**方法训练20个SVM，这个过程首先需要将预处理之后的positives和negtive送入步骤2中已经fine-tune的Alexnet分类器，并将每个全连接的输出保存，即每个positives和negtive样例得到4096&times;1维的向量，然后在用其作为SVM的输入，每个SVM得到一个维度为1的输出（例如分数大于0.5的为positive，反之为negtive）。
+4.训练**BBox**回归
+&ensp;&ensp;&ensp;&ensp;与训练SVM一样，对每一个目标类分别训练一个BBox回归模型，共20个**BBox**回归模型，首先使用selective search方法得到每一类IOU大于0.6的建议框，并计算这些建议框与其对应的**ground truth**的缩放和偏移值t<sup>*</sup>，并按照分类文件夹保存，然后将每一个建议框经过预处理后送入步骤2中**fine-tune**后的**Alexnet**,得到每一个**pooling 5**之后的6&times;6&times;256的特征张量，然后将每一个(特征张量，t<sup>*</sup>)送入回归模型进行训练。
 ###### 二.测试阶段
 &ensp;&ensp;&ensp;&ensp;对每一张输入图片进行selective search产生2000个建议框，经过预处理之后送入训练好的Alexnet，得到2000&times;4096维的输出向量，将其与得到的输入为4096&times;1的20个分类进行计算，得到2000&times;20的输出，然后对每一类进行NMS处理去掉冗余框，并将剩下的建议框送入Alexnet得到pooling 5后的特征张量，送入该类对应的BBox回归模型得到最后的位置信息。
 ###### 三.概念解释
-1.IOU
-&ensp;&ensp;&ensp;&ensp;IOU的计算基于Jaccard相似系数，其主要衡量了两个边界框的重叠率。它的计算需要真实框B<sub>gt</sub>和预测框B<sub>p</sub>这两个值的参与，通过计算IOU值就可以判定一个检测是TP（True Positive）还是FP（False Positive）。IOU的值可以通过计算真实框和预测框交集和并集的比值得到：
+1.**IOU**
+&ensp;&ensp;&ensp;&ensp;IOU的计算基于Jaccard相似系数，其主要衡量了两个边界框的重叠率。它的计算需要真实框B<sub>gt</sub>和预测框B<sub>p</sub>这两个值的参与，通过计算IOU值就可以判定一个检测是**TP**（True Positive）还是**FP**（False Positive）。IOU的值可以通过计算真实框和预测框交集和并集的比值得到：
 $$ IOU = /frac{area(B_{gt}\bigcapB_p)}{area(B_{gt}\bigcupB_p)} $$
 
 <div align=center><img src="./images/RCNN_1.png" width = "391" height = "234" align=center/></div>
@@ -58,6 +58,16 @@ $$ \hat{G}_x = P_wd_x(P) + P_x  $$
 $$ \hat{G}_y = P_hd_y(P) + P_y  $$
 $$ \hat{G}_w = P_wexp(d_w(P))  $$
 $$ \hat{G}_h = P_hexp(d_h(P))  $$
+4. standard hard negative mining method
+&ensp;&ensp;&ensp;&ensp; 在训练过程中会出现 正样本的数量远远小于负样本，这样训练出来的分类器的效果总是有限的，会出现许多false positive。采取办法可以是，先将正样本与一部分的负样本投入模型进行训练，然后将训练出来的模型去预测剩下未加入训练过程的负样本，当负样本被预测为正样本时，则它就为false positive，就把它加入训练的负样本集，进行下一次训练，知道模型的预测精度不再提升这就好比错题集，做错了一道题，把它加入错题集进行学习，学会了这道题，成绩就能得到稍微提升，把自己的错题集都学过去，成绩就达到了相对最优。
+参考：
+  &ensp;https://arxiv.org/abs/1311.2524v3
+  &ensp;https://blog.csdn.net/zijin0802034/article/details/77685438
+  &ensp;https://github.com/Liu-Yicheng/R-CNN
+  &ensp;https://blog.csdn.net/qq_33221533/article/details/81312880
+  
+  
+ **注**：此博客内容为原创，转载请说明出处
 
 
 
