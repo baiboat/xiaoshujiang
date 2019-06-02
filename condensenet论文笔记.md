@@ -9,6 +9,7 @@ grammar_cjkRuby: true
 
 
 &ensp;&ensp;&ensp;&ensp; **condensenet**类似于模型压缩里的**pruning**剪枝类型，但是其不同之处在于，一般的剪枝是对已经训练好的模型进行处理，而**condensenet**是在训练过程中进行剪枝。它将Densenet的稠密连接和新提出的**learned group convolution**模块相结合提出了一个轻量级网络结构。
+<!--more-->
 &ensp;&ensp;&ensp;&ensp;这个网络结构主要是针对在**Densenet**的稠密连接中存在这许多冗余信息，并非每个后续层都需要所有先前的特征。所以作者提出了一种在训练过程中自主学习输入分组的方法，将**Densenet**中的1x1卷积进行分组，并且进行重新排列来进行训练。
 <div align=center><img src="./images/condensenet_4.png" width = "391" height = "234" align=center/></div>
 其学习分组的过程如下：
@@ -26,7 +27,7 @@ grammar_cjkRuby: true
 <div align=center><img src="./images/condensenet_5.png" width = "966" height = "248" align=center/></div>
 
 并且论文中定义了一种正则化**Group Lasso**：
-$$ \sum_{g=1}^{G}\sum_{j=1}{R}\sqrt{\sum_{i=1}^{O/G}{F_{i,j}^{g}}^2} $$
+$$ \sum_{g=1}^{G}\sum_{j=1}^{R}\sqrt{\sum_{i=1}^{O/G}{F_{i,j}^{g}}^2} $$
 &ensp;&ensp;&ensp;&ensp;来减少由重量修剪引起的对准确性的负面影响，L1正则化通常用于诱导稀疏性。 在**CondenseNets**中，鼓励来自同一组的卷积滤波器使用相同的传入特征子集，即引入group级稀疏性。 为此，在训练期间使用了Group Lasso正则化，该正规则同时推动所有F<sup>g</sup>列的元素为零。
 最后提出的网络结构图如下：
 
