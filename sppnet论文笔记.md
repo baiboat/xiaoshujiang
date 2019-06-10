@@ -56,10 +56,11 @@ sppnet的映射方式如下：
 &ensp;&ensp;&ensp;&ensp;论文中给出的公式有一定的偏差，不能满足所有情况。假设输入的特征图大小为(7,11),最终需要的池化后的大小为(2,2),那么按照公式$win = \lceil{a/n}\rceil$，$str = \lfloor{a/n}\rfloor$得到的核大小为(4,6),步长为(3,5),其得到池化后的大小确为(2,2),但是如果输入特征图大小不变，而希望得到池化后的大小为(4,4),这时如果按照上述公式则得到的池化后的大小为(6,5)。这是可以通过公式推导来一探究竟。按照论文公式我们得到的$win = \lceil{a/n}\rceil$,$str = \lfloor{a/n}\rfloor$。如果想池化后的大小为n，则应满足：
 $$ \lfloor{\frac{a-\lceil{\frac{a}{n}}\rceil}{\lfloor{\frac{a}{n}}\rfloor}}\rfloor + 1 = n$$
 这时可分为两种情况：
-&ensp;&ensp;&ensp;&ensp;1）当$/frac{a}{n}$为整数时：
+&ensp;&ensp;&ensp;&ensp;1）当$\frac{a}{n}$为整数时：
 $$ \lfloor{\frac{a-\frac{a}{n}}{\frac{a}{n}}}\rfloor  + 1= n - 1 + 1 = n $$
-&ensp;&ensp;&ensp;&ensp;1）当$/frac{a}{n}$不为整数时：
-$$ \lfloor{\frac{a-\lceil{\frac{a}{n}}\rceil}{\lfloor{\frac{a}{n}}\rfloor}}\rfloor + 1 = \frac{a}{\lfloor{\frac{a}{n}}\rfloor}\times{n} - \frac{\lceil{\frac{a}{n}}\rceil}{\lfloor{\frac{a}{n}}\rfloor} + 1
+&ensp;&ensp;&ensp;&ensp;1）当$\frac{a}{n}$不为整数时：
+$$ \lfloor{\frac{a-\lceil{\frac{a}{n}}\rceil}{\lfloor{\frac{a}{n}}\rfloor}}\rfloor + 1 = \frac{a}{\lfloor{\frac{a}{n}}\rfloor}\times{n} - \frac{\lceil{\frac{a}{n}}\rceil}{\lfloor{\frac{a}{n}}\rfloor} + 1 $$
+
 &ensp;&ensp;&ensp;&ensp;从上述公式可以看出当为第一种情况时论文中的公式永远满足条件，所以我们可以对公式做如下修改：
 $$ h_new = n\times\lceil{\frac{h}{n}}\rceil $$
 $$ w_new = n\times\lceil{\frac{w}{n}}\rceil $$
