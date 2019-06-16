@@ -453,7 +453,7 @@ class RegionProposalNetwork(nn.Module):
 ```
 &ensp;&ensp;&ensp;&ensp;上面代码如果看着不明白，可以直接看下图，假设原图H=1000，W=600，经过1/16的降采样之后的特征图大小为h=63，w=38，则其在特征图上的anchor的偏移值等于1时：
 
-<div align=center><img src="./images/faster_rcnn_anchor_base_1" width = "800" height = "422" align=center/></div>
+<div align=center><img src="./images/faster_rcnn_anchor_base_1.png" width = "800" height = "422" align=center/></div>
 
 其在特征图上的anchor的偏移值等于10时:
 
