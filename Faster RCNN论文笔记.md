@@ -10,7 +10,7 @@ grammar_cjkRuby: true
 
 &ensp;&ensp;&ensp;&ensp;在**Fast RCNN**中，rgb大神已经将**RCNN**中提取特征、训练分类器和训练位置回归合并为一个网络，极大的节省了时间和空间开销，现在**Fast RCNN**中面临的另一个瓶颈就是建议框的生成，在**Fast RCNN**中依然使用的是**selective search**的方法，这种方法耗费大量的时间，所以在**Faster RCNN**中，作者继续发力提出了**RPN**来代替**selective search**方法，几乎将这一部分花费的时间降为了0秒（2s -> 0.01s）。
 <!--more-->
-在网上已经有很多大神对不同版本实现的**Faster RCNN**进行了解读，但是有些细节还是百思不得其解，本想从源码角度来捋一捋，奈何水平有限，caffe版本的源码都不知从何看起。原作者的caffe版本源码见[**py-faster-rcnn**](https://github.com/rbgirshick/py-faster-rcnn)，Tensorflow版本的源码见[**tf-faster-rcnn**](https://github.com/endernewton/tf-faster-rcnn)，pytorch版本的源码见[**ruotianluo/pytorch-faster-rcnn**](https://github.com/ruotianluo/pytorch-faster-rcnn)，此博客参考的是陈云实现的简易版的pytorch实现[**simple-faster-rcnn-pytorch**](https://github.com/chenyuntc/simple-faster-rcnn-pytorch)，虽然是简易版但其效果也不错，而且更适合来理解网络的脉络。从编程角度来说， Faster R-CNN主要分为四部分：
+在网上已经有很多大神对不同版本实现的**Faster RCNN**进行了解读，但是有些细节还是百思不得其解，本想从源码角度来捋一捋，奈何水平有限，caffe版本的源码都不知从何看起。原作者的caffe版本源码见[**py-faster-rcnn**](https://github.com/rbgirshick/py-faster-rcnn)，对于该版本较好的讲解见[一文读懂Faster RCNN](https://zhuanlan.zhihu.com/p/31426458)。Tensorflow版本的源码见[**tf-faster-rcnn**](https://github.com/endernewton/tf-faster-rcnn)。pytorch版本的源码见[**ruotianluo/pytorch-faster-rcnn**](https://github.com/ruotianluo/pytorch-faster-rcnn)，对于该版本的讲解见[Object Detection and Classification using R-CNNs](http://www.telesens.co/2018/03/11/object-detection-and-classification-using-r-cnns/)。对于此博客参考的是陈云实现的简易版的pytorch实现[**simple-faster-rcnn-pytorch**](https://github.com/chenyuntc/simple-faster-rcnn-pytorch)，陈云自己的讲解见[从编程实现角度学习Faster R-CNN（附极简实现）](https://zhuanlan.zhihu.com/p/32404424)。这篇博客大部分内容也是参考的前面几个讲解，在此对这几位的工作表示膜拜。虽然是简易版但其效果也不错，而且更适合来理解网络的脉络。从编程角度来说， Faster R-CNN主要分为四部分：
 &ensp;&ensp;&ensp;&ensp;1）Dataset：数据，提供符合要求的数据格式（目前常用数据集是VOC和COCO）。
 &ensp;&ensp;&ensp;&ensp;2）Extractor： 利用CNN提取图片特征features（原始论文用的是ZF和VGG16，后来人们又用ResNet101）。
 &ensp;&ensp;&ensp;&ensp;3）RPN(Region Proposal Network): 负责提供候选区域rois（每张图给出大概2000个候选框）。
@@ -29,9 +29,9 @@ Faster R-CNN整体的流程可以分为三步：
 
 需要注意的是： 蓝色箭头的线代表着计算图，梯度反向传播会经过。而红色部分的线不需要进行反向传播（论文了中提到了ProposalCreator生成RoIs的过程也能进行反向传播，但需要专门的算法）
 
-#####详细实现
+##### 详细实现
 &ensp;&ensp;&ensp;&ensp;接下来从大佬的代码一步一步来捋一遍**Faster RCNN**的**详细实现**。
-######数据部分
+###### 数据部分
 <div align=center><img src="./images/faster_rcnn_image_pre_pro.png" width = "898" height = "380" align=center/></div>
 对与每张图片，需要进行如下数据处理：
 &ensp;&ensp;&ensp;&ensp;1）图片进行缩放，使得长边小于等于1000，短边小于等于600（至少有一个等于）。
@@ -118,7 +118,7 @@ class Transform(object):
 			return img
 ```
 &ensp;&ensp;&ensp;&ensp;以上就是对数据的处理过程,在得到数据之后便可以进行到训练阶段了。
-######Extractor
+###### Extractor
 &ensp;&ensp;&ensp;&ensp;Extractor使用的是预训练好的模型提取图片的特征。论文中主要使用的是Caffe的预训练模型VGG16。修改如下图所示：为了节省显存，前四层卷积层的学习率设为0。Conv5_3的输出作为图片特征（feature）。conv5_3相比于输入，下采样了16倍，也就是说输入的图片尺寸为3×H×W，那么feature的尺寸就是C×(H/16)×(W/16)。VGG最后的三层全连接层的前两层，一般用来初始化RoIHead的部分参数，这个稍后再讲。总之，一张图片，经过extractor之后，会得到一个C×(H/16)×(W/16)的feature map。
 <div align=center><img src="./images/faster_rcnn_extrator.png" width = "322" height = "564" align=center/></div>
 &ensp;&ensp;&ensp;&ensp;对于网络结构的划分在\model\faster_rcnn_vgg16.py中的FasterRCNNVGG16类中，其定义为：
@@ -197,7 +197,7 @@ class FasterRCNNVGG16(FasterRCNN):
 			)
 ```
 &ensp;&ensp;&ensp;&ensp;将网络整体分为上述的 extractor，RPN，classifier，VGG16RoIHead后首先将数据部分得到的**scale**之后的image送入extrator进行特征提取得到vgg_16的conv_5之后的特征图，这个过程中对图片进行了下采样，使得图片的大小变为了预处理**scale**之后的1/16倍。提取完特征图之后便进入到了最重要的第三个部分**RPN**层。
-######RPN
+###### RPN
 &ensp;&ensp;&ensp;&ensp;在**RPN**中，作者提出了**anchor**。**Anchor**是大小和尺寸固定的候选框。论文中用到的**anchor**有三种尺寸和三种比例，如下图所示，三种尺寸分别是小（蓝128）中（红256）大（绿512），三个比例分别是1:1，1:2，2:1。3×3的组合总共有9种**anchor**。
 
 <div align=center><img src="./images/faster_rcnn_anchor.png" width = "301" height = "292" align=center/></div>
@@ -213,6 +213,7 @@ class FasterRCNNVGG16(FasterRCNN):
 **ROI Pooling Layer**：实现空间变换网络，该网络在给定由提议目标层产生的区域提议的边界框坐标的情况下对输入要素图进行采样。 这些坐标通常不在整数边界上，因此需要基于插值的采样。
 **roi_head**：分类层采用ROI池层生成的输出特征图，并将它们传递给roi_head，最后输出两个全连接层。 第一层为每个区域提议生成类概率分布，第二层生成一组特定于类的边界框回归量。**注意**这部分的输入是**Proposal Target Layer**的输出。
 **roi_head Loss**: 与RPN loss类似，分类丢失是在优化期间最小化以训练分类网络的度量。 在反向传播期间，误差梯度也流向RPN网络，因此训练分类层也会修改RPN网络的权重。 
+###### Reigon Proposal Network
 <div align=center><img src="./images/faster_rcnn_rpn_network.png" width = "893" height = "549" align=center/></div>
 &ensp;&ensp;&ensp;&ensp;**anchor**的数量和**feature map**相关，不同的**feature map**对应的**anchor**数量也不一样。接下来**RPN**在**Extractor**输出的**feature maps**的基础之上，先增加了一个卷积（用来语义空间转换？），然后利用两个1x1的卷积分别进行二分类（是否为正样本）和位置回归。进行分类的卷积核通道数为9×2（9个anchor，每个anchor二分类，使用交叉熵损失），进行回归的卷积核通道数为9×4（9个anchor，每个anchor有4个位置参数）。RPN是一个全卷积网络（fully convolutional network），这样对输入图片的尺寸就没有要求了。
 RPN在自身训练的同时，还会提供RoIs（region of interests）给Fast RCNN（RoIHead）作为训练样本。RPN生成RoIs的过程(ProposalCreator)如下：
@@ -450,7 +451,7 @@ class RegionProposalNetwork(nn.Module):
 		anchor = anchor.reshape((K * A, 4)).astype(np.float32)
 		return anchor
 ```
-######RPN_Loss
+###### RPN_Loss
 接下来RPN做的事情就是利用（AnchorTargetCreator）将20000多个候选的anchor选出256个anchor进行分类和回归位置。选择过程如下：
 &ensp;&ensp;&ensp;&ensp;1）对于每一个ground truth bounding box (gt_bbox)，选择和它重叠度（IoU）最高的一个anchor作为正样本。
 &ensp;&ensp;&ensp;&ensp;2）对于剩下的anchor，从中选择和任意一个gt_bbox重叠度超过0.7的anchor，作为正样本，正样本的数目不超过128个。
@@ -1163,7 +1164,7 @@ class RegionProposalNetwork(nn.Module):
 		loc = xp.vstack((dy, dx, dh, dw)).transpose()
 		return loc
 ```
-######RoIHead/Fast RCNN
+###### RoIHead/Fast RCNN
 &ensp;&ensp;&ensp;&ensp;此时通过ProposalTargetCreator便得到了128个(sample_roi, gt_roi_loc, gt_roi_label)RoIs对，接下来便需要得到的每个**sample_roi**通过**RoIHead**层，首先对于ProposalTargetCreator得到的128个RoIs应该经过**ROI Pooling**,使用RoIPooling 将这些不同尺寸的区域全部pooling到同一个尺度（7×7）上。为什么要pooling成7×7的尺度？是为了能够共享权重。在之前讲过，除了用到VGG前几层的卷积之外，最后的全连接层也可以继续利用。**当所有的RoIs都被pooling成（512×7×7）的feature map后，将它reshape 成一个一维的向量，就可以利用VGG16预训练的权重，初始化前两层全连接**。最后再接两个全连接层，分别是：
 &ensp;&ensp;&ensp;&ensp;1）FC 21 用来分类，预测RoIs属于哪个类别（20个类+背景）。
 &ensp;&ensp;&ensp;&ensp;2）FC 84 用来回归位置（21个类，每个类都有4个位置参数）。
@@ -1385,7 +1386,7 @@ class RegionProposalNetwork(nn.Module):
 &ensp;&ensp;&ensp;&ensp;上面的代码为什么没有注释，因为我也没有看太懂（留下了没有技术的眼泪），不过大家可以移步[**详细的Faster R-CNN源码解析之ROI-Pooling逐行代码解析**](https://www.cnblogs.com/hanjianjian90/p/10540104.html)，其实大概原理如下图：
 <div align=center><img src="./images/faster_rcnn_roi+pooling.png" width = "900" height = "600" align=center/></div>
 &ensp;&ensp;&ensp;&ensp;从上图可以看出，roi可能存在重叠的部分，对于重叠的部分在前向的时候每一个区域的max值会对应多个**roi pooling**的值，在反向的时候就要将这些对应的梯度加起来，然后就和一般的**maxpooling**的反向传播一样通过上采样放到对应的位置，对于特征图中不是roi的部分全部置为0(因为在计算反向传播的时候首先初始化了一个特征图大小的全部为0的张量)。
-######roi_head/Fast RCNN loss 
+###### roi_head/Fast RCNN loss 
 &ensp;&ensp;&ensp;&ensp;这样便可得到每个**sample_roi**对应的predict_loc和predict_label即roi_cls_loc和roi_score,同前面的到的gt_roi_loc, gt_roi_label来计算loss。对于分类问题,直接利用交叉熵损失. 而对于位置的回归损失,一样采用Smooth_L1Loss, 只不过只对正样本计算损失.而且是只对正样本中的这个类别4个参数计算损失。举例来说:
 &ensp;&ensp;&ensp;&ensp;1）一个RoI在经过FC 84后会输出一个84维的loc 向量. 如果这个RoI是负样本,则这84维向量不参与计算 Smooth_L1Loss。
 &ensp;&ensp;&ensp;&ensp;2）如果这个RoI是正样本,属于label K,那么它的第 K×4, K×4+1 ，K×4+2， K×4+3 这4个数参与计算损失，其余的不参与计算损失。
@@ -1429,15 +1430,22 @@ class RegionProposalNetwork(nn.Module):
 		loc_loss /= ((gt_label >= 0).sum().float()) # ignore gt_label==-1 for rpn_loss
 		return loc_loss
 ```
-######total loss
+###### total loss
 &ensp;&ensp;&ensp;&ensp;因为这个版本的代码使用的是近似联合训练，所以其总的loss为**RPN loss**与**roi_head/Fast RCNN  loss**之和，其代码为：
 ```javascript
 	losses = [rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss]
 	losses = losses + [sum(losses)]#[rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss, sum(losses)]
 	return LossTuple(*losses)
 ```
-**注意**：此处并没有使用$N_cls$和$N_reg$进行标准化，因为论文中也提到了通过实验发现这种归一化是不必要的。
+**注意**：此处并没有使用$N_{cls}$和$N_{reg}$进行标准化，因为论文中也提到了通过实验发现这种归一化是不必要的。
 
+参考：
+  &ensp;https://zhuanlan.zhihu.com/p/32404424
+  &ensp;https://zhuanlan.zhihu.com/p/31426458
+  &ensp;http://www.telesens.co/2018/03/11/object-detection-and-classification-using-r-cnns/
+  &ensp;https://www.cnblogs.com/hanjianjian90/p/10540104.html
+  
+ **注**：此博客内容为原创，转载请说明出处
 
 
 
