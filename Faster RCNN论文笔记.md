@@ -451,6 +451,17 @@ class RegionProposalNetwork(nn.Module):
 		anchor = anchor.reshape((K * A, 4)).astype(np.float32)
 		return anchor
 ```
+&ensp;&ensp;&ensp;&ensp;上面代码如果看着不明白，可以直接看下图，假设原图H=1000，W=600，经过1/16的降采样之后的特征图大小为h=63，w=38，则其在特征图上的anchor的偏移值等于1时：
+
+<div align=center><img src="./images/faster_rcnn_anchor_base_1" width = "800" height = "422" align=center/></div>
+
+其在特征图上的anchor的偏移值等于10时:
+
+<div align=center><img src="./images/faster_rcnn_anchor__shift_10.png" width = "800" height = "422" align=center/></div>
+
+将所有生成的anchor都得到时：
+
+<div align=center><img src="./images/faster_rcnn_anchor__shift_all.png" width = "800" height = "422" align=center/></div>
 ###### RPN_Loss
 接下来RPN做的事情就是利用（AnchorTargetCreator）将20000多个候选的anchor选出256个anchor进行分类和回归位置。选择过程如下：
 &ensp;&ensp;&ensp;&ensp;1）对于每一个ground truth bounding box (gt_bbox)，选择和它重叠度（IoU）最高的一个anchor作为正样本。
