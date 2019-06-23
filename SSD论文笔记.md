@@ -19,7 +19,7 @@ grammar_cjkRuby: true
 那么接下来以conv4_3和fc7为例分析SSD是如何将不同size的feature map组合在一起进行prediction。下图展示了conv4_3和fc7合并在一起的过程中caffe blob shape变化（其他层类似，考虑到图片大小没有画出来，请脑补）。
 <div align=center><img src="./images/ssd_dataflow.jpg" width = "1215" height = "593" align=center/></div>
 **注意**：mbox_loc输出的维度为（1，4w1h1+6w1h1..., 4）,而不是上图中的（1，16w1h1+24w1h1）
-&ensp;&ensp;&ensp;&ensp;1）对于conv4_3 feature map，conv4_3_norm_priorbox（priorbox层）设置了每个点共有4个prior box。由于SSD 300共有21个分类，所以conv4_3_norm_mbox_conf的channel值为num_priorbox * num_class = 4 * 21 = 84；而每个prior box都要回归出4个位置变换量，所以conv4_3_norm_mbox_loc的caffe blob channel值为4 * 4 = 16。
+&ensp;&ensp;&ensp;&ensp;1）对于conv4_3 feature map，conv4_3_norm_priorbox（priorbox层）设置了每个点共有4个prior box。由于SSD 300共有21个分类，所以conv4_3_norm_mbox_conf的channel值为num_priorbox&times;num_class = 4&times;21 = 84；而每个prior box都要回归出4个位置变换量，所以conv4_3_norm_mbox_loc的caffe blob channel值为4&times;4 = 16。
 &ensp;&ensp;&ensp;&ensp;2）fc7每个点有6个prior box，其他feature map同理。
 &ensp;&ensp;&ensp;&ensp;3）经过一系列上图展示的caffe blob shape变化后，最后拼接成mbox_conf和mbox_loc。而mbox_conf后接reshape，再进行softmax。
 
@@ -301,17 +301,17 @@ $$ X_{i,c}: = X_{i,c}/S_{i}, C=1,2,...C $$
 在计算loss之前首先需要通过**Hard negative mining**方法来选择参与训练的正样本和负样本，对batch内的每个image上得到的prior box，对每个prior box，计算置信度损失。根据softmax分类，可知其计算式为： 
 
 $$ L_{i,j}^{conf} = -log(P_{i,j}) $$
-$$ S_{i,j} = \sum_{c=0}^{20}exp(V_{i,j,c} $$
+$$ S_{i,j} = \sum_{c=0}^{20}exp(V_{i,j,c})$$
 $$ P_{i,j}= expV_{i,j,k}/S_{i,j} $$
 
 其中，i表示image 的batch index，j表示image上的prior index，k表示这个prior所匹配的gt box的分类id，如果prior 没有匹配的gt box，则k=0， $v_{i,j,c}$为第i个image上的第j个prior box 预测分类为c的非归一化置信度。
 从上面三个式子可见，当这个prior box分类id为p 与匹配的gt box 分类一致时，其分类损失最小，说明这个置信度损失计算式是合适的。当然，为了避免数值计算的溢出等问题，通常首先采取如下变换，
-$$ V_{i,j,c} := V_{i,j,c} - max_{d\epsilon{0,1,...,20}V_{i,j,d}}  $$
+$$ V_{i,j,c} := V_{i,j,c} - max_{d\epsilon{0,1,...,20}}V_{i,j,d}  $$
 **但是这个代码里没有进行此操作**。
 这样就得到所有prior 的置信度损失。然后再：
 &ensp;&ensp;&ensp;&ensp;1）找出合适的负例对应的prior 以及对应的loss，记负例的数量为num_neg。合适的负例判断标准是：如果一个prior box，其没有匹配的gt box，并且与所有gt box的IOU最大值小于0.5（这是负例最大IOU配置的阈值）。
 &ensp;&ensp;&ensp;&ensp;2）prior 有匹配的gt box，记数量为num_pos。正负例使用比例设置为1:3，所以num_neg=num_pos * neg_pos_ratio。
-&ensp;&ensp;&ensp;&ensp;3）将第1步中找到的合适负例按置信度损失倒序排序，选取置信度损失最大的num_pos个负例prior。
+&ensp;&ensp;&ensp;&ensp;3）将第1步中找到的合适负例按置信度损失倒序排序，选取置信度损失最大的num_neg个负例prior。
 **Hard negative mining**定义在utils/box_utils.py中，其代码如下：
 ```javascript
 	def hard_negative_mining(loss, labels, neg_pos_ratio):
@@ -338,7 +338,7 @@ $$ V_{i,j,c} := V_{i,j,c} - max_{d\epsilon{0,1,...,20}V_{i,j,d}}  $$
 		neg_mask = orders < num_neg
 		return pos_mask | neg_mask
 ```
-最后在SSD类中对预测的location转换为相应的box，其代码如下：
+最后在SSD类中对预测的location$(t_x,t_y,t_w,t_h)$转换为相应的box($\hat{G_x}$,$\hat{G_y}$,$\hat{G_w}$,$\hat{G_h}$)，其代码如下：
 ```javascript
 	def convert_locations_to_boxes(locations, priors, center_variance,
 								   size_variance):
@@ -364,6 +364,19 @@ $$ V_{i,j,c} := V_{i,j,c} - max_{d\epsilon{0,1,...,20}V_{i,j,d}}  $$
 			locations[..., :2] * center_variance * priors[..., 2:] + priors[..., :2],
 			torch.exp(locations[..., 2:] * size_variance) * priors[..., 2:]
 		], dim=locations.dim() - 1)
+```
+然后通过center_form_to_corner_form函数将[x_center, y_center, w, h]形式转换为[x_min, y_min, x_max, y_max]的形式，center_form_to_corner_form定义在utils/box_utils.py中，其代码如下：
+```javascript
+	def center_form_to_corner_form(locations):
+		return torch.cat([locations[..., :2] - locations[..., 2:] / 2,
+						  locations[..., :2] + locations[..., 2:] / 2], locations.dim() - 1)
+
+
+	def corner_form_to_center_form(boxes):
+		return torch.cat([
+			(boxes[..., :2] + boxes[..., 2:]) / 2,
+			boxes[..., 2:] - boxes[..., :2]
+		], boxes.dim() - 1)
 ```
 **注意**：这里得到的box也是归一化大小的，所以在draw_box是需要恢复到原图大小，恢复原图大小的代码位于modeling/post_processer.py中，如下：
 ```javascript
@@ -805,19 +818,19 @@ PhotometricDistort()的定义如下,以1/2的概率对图像进行两种形式�
 &ensp;&ensp;&ensp;&ensp;1）以feature map上每个点的中点为中心，生成一些列同心的prior box。
 &ensp;&ensp;&ensp;&ensp;2）正方形prior box最小边长为和最大边长为：
 $$ minsize $$
-$$ \sqrt{minsize /times maxsize} $$
+$$ \sqrt{minsize \times maxsize} $$
 &ensp;&ensp;&ensp;&ensp;3）每在prototxt设置一个aspect ratio，会生成2个长方形，长宽为：
-$$ \sqrt{aspect ratio /times minsize} $$
-$$  1/sqrt{aspect ratio /times minsize} $$
+$$ \sqrt{aspect ratio \times minsize} $$
+$$  1/\sqrt{aspect ratio \times minsize} $$
 
 <div align=center><img src="./images/ssd_prior_box.jpg" width = "567" height = "355" align=center/></div>
 
 而每个feature map对应prior box的min_size和max_size由以下公式决定：
-$$ S_{k} = S_{min} + /frac{S_{max}-S_{min}}{m-1}(k-1)  , k \epsilon [1,m] $$
+$$ S_{k} = S_{min} + \frac{S_{max}-S_{min}}{m-1}(k-1)  , k \epsilon [1,m] $$
 公式中的m是指进行预测时使用feature map的数量，如SSD300使用conv4-3等6个feature maps进行预测，所以 m=6。同时原文设定$S_{min}=0.2$ ,$S_{max} = 0.9$。
 那么：
-对于conv4-3： k=1, $minsize = s_{1} /times 300$ , $maxsize = s_{2} /times 300$
-对于conv-7:  k=2, $minsize = s_{2} /times 300$, $maxsize = s_{3} /times 300$
+对于conv4-3： k=1, $minsize = s_{1} \times 300$ , $maxsize = s_{2} \times 300$
+对于conv-7:  k=2, $minsize = s_{2} \times 300$, $maxsize = s_{3} \times 300$
 .......
 
 显然可以用上述公式推导出每个feature maps使用的Prior Box size。但是在SSD300中prior box设置并不能完全和上述公式对应：
@@ -825,7 +838,7 @@ $$ S_{k} = S_{min} + /frac{S_{max}-S_{min}}{m-1}(k-1)  , k \epsilon [1,m] $$
 <div align=center><img src="./images/ssd_prior_box_size.png" width = "520" height = "348" align=center/></div>
 
 不过依然可以看出：SSD使用感受野小的feature map检测小目标，使用感受野大的feature map检测更大目标。
-总共生成$(38 /times 38 + 3 /times 3 + 1 /times 1 ) /times 4 + (19 /times 19 + 10 /times 10 + 5 /times 5) /times = 8732$个prior box。
+总共生成$(38 \times 38 + 3 \times 3 + 1 \times 1 ) \times 4 + (19 \times 19 + 10 \times 10 + 5 \times 5) \times = 8732$个prior box。
 这个是提前算出来并且在congfig文件中直接设置，而不是在程序中进行计算。
 其操作定义在module/prior_box.py中，其代码如下：
 ```javascript
@@ -964,7 +977,7 @@ $$ S_{k} = S_{min} + /frac{S_{max}-S_{min}}{m-1}(k-1)  , k \epsilon [1,m] $$
 在为每一个priors分配一个label和与其对应的ground truth之后，还需计算其与ground  truth的偏移值$t_x,t_y,t_w,t_h$,在模型预测时得到的也是这四个对应的偏移值。每个prior的中心点坐标以及宽高，记为$x_p,y_p,w_p,h_p$,并获取这个prior box对应的坐标方差 $v_x,v_y,v_h,v_w$（实际上所有prior 的坐标方差值均为(0.1,0.1,0.2,0.2)）。每个prior 其匹配的gt box其中心点坐标以及宽高，记为$x_g,y_g,w_g,h_g$ ，于是prior box与gt box坐标偏移值可计算如下，
 $$ t_x = (x_{g} - x_{p})/(w_{p}v_{x}) $$
 $$ t_y = (y_{g} - y_{p})/(h_{p}v_{y}) $$
-$$ t_w = log(w_{g}/w_{p])/v_{w} $$
+$$ t_w = log(w_{g}/w_{p})/v_{w} $$
 $$ t_h = log(h_{g}/h_{p})/v_{h} $$
 上述操作在MatchPrior中通过调用convert_boxes_to_location实现，其定义在utils/box_utils中，代码为：
 ```javascript
