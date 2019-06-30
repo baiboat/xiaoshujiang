@@ -24,7 +24,7 @@ grammar_cjkRuby: true
 由上述代码可以看出，其使用Darknet类来进行模型构建，在分析其构建代码之前首先来看看其主干网络**Darknet-53**和整体网络的模型结构，其结构分别如下图所示：
 <div align=center><img src="./images/darknet53.png" width = "357" height = "495" align=center/></div>
 从上图可以看出，**Darknet-53**主要借鉴了**resnet**的思想使用残差结构，**注意**上图中的输入大小是256&times;256，共经过32次降采样，其最后的输出特征图的大小为8&times;8,并且最后使用了**Avgpool**和**softmax**，**Darknet-53**的分类效果甚至超过了RseNet-101,并且速度是其1.5倍，感觉其就算单独出一片论文也不为过啊，而在**YOLOv3**中的输入大小为416&times;416,因此其最后的输出大小为13&times;13,也就是相当于将原始图片分为了13&times;13的**cell**。
-<div align=center><img src="./images/yolov3_architecture_1.png" width = "1500" height = "1420" align=center/></div>
+<div align=center><img src="./images/yolov3_architecture_1.png" width = "1224" height = "693" align=center/></div>
 从上图可以看出**YOLOv3**共使用了三个尺寸的特征图13&times;13,26&times;26,52&times;52来进行检测,每一个尺度特征图的**cell**中都分别生成三个尺寸的bounding box priors，共有九个尺寸的bounding box priors，这九个box也是从coco数据集中聚类得到的。
 
 <div align=center><img src="./images/yolo_anchor.jpg" width = "992" height = "109" align=center/></div>
