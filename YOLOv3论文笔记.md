@@ -63,7 +63,7 @@ grammar_cjkRuby: true
 			yolo_outputs = to_cpu(torch.cat(yolo_outputs, 1))
 			return yolo_outputs if targets is None else (loss, yolo_outputs)
 ```
-**YOLOv3**的网络模型结构定义是通过一个配置文件来描述的，通过解析这个网络配置文件得到网络结构，然后创建模型，其配置文件位于config/yolov3.cfg中，其定义共有700多行代码，在此就不展示了，大家可以去自行看源码。其实这个配置文件就是一个文本文件，解析它之后可以得到一个结构列表，列表中包含每一层的定义字典。parse_model_config函数定义在utils/parse_config.py中，其代码如下：
+**YOLOv3**的网络模型结构定义是通过一个配置文件来描述的，通过解析这个网络配置文件得到网络结构，然后创建模型，其配置文件位于config/yolov3.cfg中，其定义共有700多行代码，在此就不展示了，大家可以去自行看源码[yolov3.cfg](https://github.com/eriklindernoren/PyTorch-YOLOv3/blob/master/config/yolov3.cfg)。其实这个配置文件就是一个文本文件，解析它之后可以得到一个结构列表，列表中包含每一层的定义字典。parse_model_config函数定义在utils/parse_config.py中，其代码如下：
 ```javascript
 	def parse_model_config(path):
 		"""Parses the yolo-v3 layer configuration file and returns module definitions"""
@@ -367,8 +367,9 @@ $$ c_i = P{r}(Class_{i}|Object) \times P_{r}(Object) \times IOU_{pred}^{truth} =
 因为在训练的时候我们期望的是pred_box有物体时$P_{r}(Class_i)$为1，没有物体是为0，而且所有的预测有物体的$IOU_{pred}{truth}$都应该为1，所以$C_i$值为0或者1。
 yolov1中给出的loss计算公式如下：
 <div align=center><img src="./images/yolo_loss.png" width = "662" height = "455" align=center/></div>
-这里还需要注意的是，**YOLOv3**中没有使用**Faster RCNN**中选取1:3的比例或者**SSD**中使用**Hard negative mining**的方法来进行正负样本均衡，为什么还有这么好的效果呢，我现在粗浅的觉的这个主要是由于它加入了一个置信度的预测值和训练每一个cell负责检测中心点落入其内的物体，这样相当于将正负样本的不均衡性限制在每一个cell之中了，那每一个cell只有三个anchor box，这样也就起到了正负样本均衡的作用，这只是个人粗浅的理解，如果大家有不同理解还望不吝赐教，在下面留言。 
+这里还需要注意的是，**YOLOv3**中没有使用**Faster RCNN**中选取1:3的比例或者**SSD**中使用**Hard negative mining**的方法来进行正负样本均衡，为什么还有这么好的效果呢，我现在粗浅的觉的这个主要是由于它加入了一个置信度的预测值和训练时每一个cell负责检测中心点落入其内的物体，这样相当于将正负样本的不均衡性限制在每一个cell之中了，那每一个cell只有三个anchor box，这样也就起到了正负样本均衡的作用，这只是个人粗浅的理解，如果大家有不同理解还望不吝赐教，在下面留言。 
 **不过在YOLOv3**中的loss_conf_obj,loss_conf_noobj,loss_cls都使用了交叉熵而不是均方差，即使用了逻辑回归。
+<div align=center><img src="./images/yolov3_box_definition.png" width = "443" height = "329" align=center/></div>
 在上面计算的时候传入了target值，这个值包含的是ground_truth的相关信息，这里的target包含的都是归一化的值，从上面代码中可以看出，首先对这些归一化的值分别乘了nG，也就是grid_size的大小，然后计算了偏移和放缩值，注意这里传入的anchor也是相对于特征图大小的，计算如下：
 $$ g_{x}, g_{y}, g_{w}, g_{h} = [x, y, w, h] \times gridsize  $$
 $$ anchor_{w}, anchor_{h} = (anchor_{w}, anchor_{h})/stride $$
