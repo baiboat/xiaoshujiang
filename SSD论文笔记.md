@@ -9,7 +9,7 @@ grammar_cjkRuby: true
 
 &ensp;&ensp;&ensp;&ensp;**SSD**(Single Shot MultiBox Detector)是典型的one stage目标检测方法的代表，相对于RCNN系列需要首先产生proposals，**SSD**没有了proposal generation和后续的roi pooling步骤，它将整个计算过程都封装在了单个网络中。
 <!--more-->
-&ensp;&ensp;&ensp;&ensp;Wei Liu的caffe版本的源代码见[weiliu89/caffe](https://github.com/weiliu89/caffe/tree/ssd),其较好的讲解见[知乎目标检测专栏SSD 分析](https://zhuanlan.zhihu.com/p/51217002),这篇博客是参考的是lufficc的pytorch版本见[lufficc/ssd](https://github.com/lufficc/SSD),虽然这个版本的star不太多，但是比较新，而且作者的readme中的实验结果竟然比原论文的结果还要好，这当然要学习一下。
+&ensp;&ensp;&ensp;&ensp;Wei Liu的caffe版本的源代码见[weiliu89/caffe](https://github.com/weiliu89/caffe/tree/ssd),其较好的讲解见[知乎目标检测专栏SSD 分析](https://zhuanlan.zhihu.com/p/51217002),[SSD目标检测](https://zhuanlan.zhihu.com/p/31427288),本博客的多处理论介绍和图片借鉴自这两篇介绍。这篇博客是参考的是lufficc的pytorch版本见[lufficc/ssd](https://github.com/lufficc/SSD),虽然这个版本的star不太多，但是比较新，而且作者的readme中的实验结果竟然比原论文的结果还要好，这当然要学习一下。
 &ensp;&ensp;&ensp;&ensp;**SSD**主要使用了多级特征图来共同参与目标分类和位置回归，并且使用了数据增广来扩充样本和**Hard negative mining**方法来解决正负样本不均衡的问题，**SSD**使用**VGG-16**作为主干网络，并且在其后添加了扩展层来构成整个网络。其论文中给出的网络结构如下图。
 <div align=center><img src="./images/ssd_network.png" width = "928" height = "256" align=center/></div>
 
@@ -826,8 +826,8 @@ PhotometricDistort()的定义如下,以1/2的概率对图像进行两种形式�
 $$ minsize $$
 $$ \sqrt{minsize \times maxsize} $$
 &ensp;&ensp;&ensp;&ensp;3）每在prototxt设置一个aspect ratio，会生成2个长方形，长宽为：
-$$ \sqrt{aspect ratio \times minsize} $$
-$$  1/\sqrt{aspect ratio \times minsize} $$
+$$ \sqrt{aspect ratio} \times minsize $$
+$$  1/\sqrt{aspect ratio} \times minsize $$
 
 <div align=center><img src="./images/ssd_prior_box.jpg" width = "567" height = "355" align=center/></div>
 
@@ -1003,6 +1003,7 @@ $$ t_h = log(h_{g}/h_{p})/v_{h} $$
   &ensp;https://zhuanlan.zhihu.com/p/31427288
   &ensp;https://zhuanlan.zhihu.com/p/66332452
   &ensp;https://github.com/lufficc/SSD
+  
  
   
  **注**：此博客内容为原创，转载请说明出处
