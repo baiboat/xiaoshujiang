@@ -495,6 +495,7 @@ target的获取定义在utils/datasets.py中的ListDataset类中，其主要代�
   &ensp;https://arxiv.org/abs/1612.08242
   &ensp;https://arxiv.org/abs/1804.02767
   &ensp;https://github.com/eriklindernoren/PyTorch-YOLOv3
+  &ensp;https://www.cyberailab.com/home/a-closer-look-at-yolov3
   
  
   
