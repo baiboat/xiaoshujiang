@@ -24,7 +24,7 @@ grammar_cjkRuby: true
 由上述代码可以看出，其使用Darknet类来进行模型构建，在分析其构建代码之前首先来看看其主干网络**Darknet-53**和整体网络的模型结构，其结构分别如下图所示：
 <div align=center><img src="./images/darknet53.png" width = "357" height = "495" align=center/></div>
 从上图可以看出，**Darknet-53**主要借鉴了**resnet**的思想使用残差结构，**注意**上图中的输入大小是256&times;256，共经过32次降采样，其最后的输出特征图的大小为8&times;8,并且最后使用了**Avgpool**和**softmax**，**Darknet-53**的分类效果甚至超过了RseNet-101,并且速度是其1.5倍，感觉其就算单独出一片论文也不为过啊，而在**YOLOv3**中的输入大小为416&times;416,因此其最后的输出大小为13&times;13,也就是相当于将原始图片分为了13&times;13的**cell**。
-<div align=center><img src="./images/yolov3_network.png" width = "1224" height = "693" align=center/></div>
+<div align=center><img src="./images/yolov3_network.jpg" width = "1224" height = "693" align=center/></div>
 从上图可以看出**YOLOv3**共使用了三个尺寸的特征图13&times;13,26&times;26,52&times;52来进行检测,每一个尺度特征图的**cell**中都分别生成三个尺寸的bounding box priors，共有九个尺寸的bounding box priors，这九个box也是从coco数据集中聚类得到的。
 
 <div align=center><img src="./images/yolo_anchor.jpg" width = "992" height = "109" align=center/></div>
@@ -363,14 +363,14 @@ $$ \hat{G_h} = exp(P_h)anchor_h  $$
 		return iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf
 ```
 上面的代码首先初始化了obj_mask,noobj_mask,......的值，然后分别计算了每一个pred_box与target中传来的ground_truth的iou值，对于每一个cell中，只将ground_truth中心点所在的cell中与其iou最大的pred_box的obj_mask的值设置为1，也就是说在训练计算loss_conf_obj的时候只有中心点所在的cell中与其iou最大的pred_box参与计算，并且将其对应的noobj_mask的值设置为0，而且将其它的ground_truth中心点所在的cell中与其iou超过阈值的pred_box也设置为0，也就是说在训练计算loss_conf_noobj的时候包含所有不含有ground_truth中心点的cell和含有ground_truth中心点的cell中iou小于阈值的pred_box。并且在最后的tcof设置为tconf为obj_mask的值，这也就对应了在计算loss时的$C_i$值为0或者1，在yolov1中定义了$C_i$的值如下：
-$$ c_i = P{r}(Class_{i}|Object)\timesP_{r}(Object)\timesIOU_{pred}^{truth} = P_{r}(Class_i)\timesIOU_{pred}{truth} $$
+$$ c_i = P{r}(Class_{i}|Object) \times P_{r}(Object) \times IOU_{pred}^{truth} = P_{r}(Class_i) \times OU_{pred}{truth} $$
 因为在训练的时候我们期望的是pred_box有物体时$P_{r}(Class_i)$为1，没有物体是为0，而且所有的预测有物体的$IOU_{pred}{truth}$都应该为1，所以$C_i$值为0或者1。
 yolov1中给出的loss计算公式如下：
 <div align=center><img src="./images/yolo_loss.png" width = "662" height = "455" align=center/></div>
 这里还需要注意的是，**YOLOv3**中没有使用**Faster RCNN**中选取1:3的比例或者**SSD**中使用**Hard negative mining**的方法来进行正负样本均衡，为什么还有这么好的效果呢，我现在粗浅的觉的这个主要是由于它加入了一个置信度的预测值和训练每一个cell负责检测中心点落入其内的物体，这样相当于将正负样本的不均衡性限制在每一个cell之中了，那每一个cell只有三个anchor box，这样也就起到了正负样本均衡的作用，这只是个人粗浅的理解，如果大家有不同理解还望不吝赐教，在下面留言。 
 **不过在YOLOv3**中的loss_conf_obj,loss_conf_noobj,loss_cls都使用了交叉熵而不是均方差，即使用了逻辑回归。
 在上面计算的时候传入了target值，这个值包含的是ground_truth的相关信息，这里的target包含的都是归一化的值，从上面代码中可以看出，首先对这些归一化的值分别乘了nG，也就是grid_size的大小，然后计算了偏移和放缩值，注意这里传入的anchor也是相对于特征图大小的，计算如下：
-$$ g_{x}, g_{y}, g_{w}, g_{h} = [x, y, w, h]\timesgridsize  $$
+$$ g_{x}, g_{y}, g_{w}, g_{h} = [x, y, w, h] \times gridsize  $$
 $$ anchor_{w}, anchor_{h} = (anchor_{w}, anchor_{h})/stride $$
 $$ t_{x} = g_{x} - \lfloor{g_{x}}\rfloor $$
 $$ t_{y} = g_{y} - \lfloor{g_{y}}\rfloor $$
