@@ -164,7 +164,7 @@ grammar_cjkRuby: true
 			#print(output_filters)
     return hyperparams, module_list
 ```
-**注意**上面的代码又一个小细节，在定义conv层的时候设置了**bias=not bn**，即意味着当卷积层后跟batch normalization层时不要偏置bias，其解释见[当卷积层后跟batch normalization层时为什么不要偏置b](https://blog.csdn.net/zxyhhjs2017/article/details/90035238),前面这些定义都比较容易理解，当定义的结构列表中包含什么定义字典就将对应的层加入到module_list中，**route**和**shortcut**类型的层都使用了EmptyLayer()占位，然后在Darknet类的forward函数中进行添加，最主要的是**YOLOLayer**的定义，这一层主要是分别计算整体结构图中对应的三个尺寸的预测输出和对应的loss，在定义的结构列表中有对应的三个type为‘yolo’的不同尺寸的层定义字典，对每一个‘yolo’层都分别计算其预测输出和loss，YOLOLayer的定义位于models.py，其代码如下：
+**注意**上面的代码有一个小细节，在定义conv层的时候设置了**bias=not bn**，即意味着当卷积层后跟batch normalization层时不要偏置bias，其解释见[当卷积层后跟batch normalization层时为什么不要偏置b](https://blog.csdn.net/zxyhhjs2017/article/details/90035238),前面这些定义都比较容易理解，当定义的结构列表中包含什么定义字典就将对应的层加入到module_list中，**route**和**shortcut**类型的层都使用了EmptyLayer()占位，然后在Darknet类的forward函数中进行添加，最主要的是**YOLOLayer**的定义，这一层主要是分别计算整体结构图中对应的三个尺寸的预测输出和对应的loss，在定义的结构列表中有对应的三个type为‘yolo’的不同尺寸的层定义字典，对每一个‘yolo’层都分别计算其预测输出和loss，YOLOLayer的定义位于models.py，其代码如下：
 ```javascript
 	class YOLOLayer(nn.Module):
 		"""Detection layer"""
@@ -367,6 +367,7 @@ $$ c_i = P{r}(Class_{i}|Object)\timesP_{r}(Object)\timesIOU_{pred}^{truth} = P_{
 因为在训练的时候我们期望的是pred_box有物体时$P_{r}(Class_i)$为1，没有物体是为0，而且所有的预测有物体的$IOU_{pred}{truth}$都应该为1，所以$C_i$值为0或者1。
 yolov1中给出的loss计算公式如下：
 <div align=center><img src="./images/yolo_loss.png" width = "662" height = "455" align=center/></div>
+这里还需要注意的是，**YOLOv3**中没有使用**Faster RCNN**中选取1:3的比例或者**SSD**中使用**Hard negative mining**的方法来进行正负样本均衡，为什么还有这么好的效果呢，我现在粗浅的觉的这个主要是由于它加入了一个置信度的预测值和训练每一个cell负责检测中心点落入其内的物体，这样相当于将正负样本的不均衡性限制在每一个cell之中了，那每一个cell只有三个anchor box，这样也就起到了正负样本均衡的作用，这只是个人粗浅的理解，如果大家有不同理解还望不吝赐教，在下面留言。 
 **不过在YOLOv3**中的loss_conf_obj,loss_conf_noobj,loss_cls都使用了交叉熵而不是均方差，即使用了逻辑回归。
 在上面计算的时候传入了target值，这个值包含的是ground_truth的相关信息，这里的target包含的都是归一化的值，从上面代码中可以看出，首先对这些归一化的值分别乘了nG，也就是grid_size的大小，然后计算了偏移和放缩值，注意这里传入的anchor也是相对于特征图大小的，计算如下：
 $$ g_{x}, g_{y}, g_{w}, g_{h} = [x, y, w, h]\timesgridsize  $$
