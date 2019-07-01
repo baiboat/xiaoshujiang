@@ -17,8 +17,7 @@ grammar_cjkRuby: true
 <div align=center><img src="./images/ssd_network_2.png" width = "679" height = "630" align=center/></div>
 上图为主要的网络结构，这个图看起来很复杂，其实很简单，conv4_3layer之前以及之后一直到conv5_3与VGG一致，接着便是fc, conv6, conv7, conv8, conv9五个子卷积网络， 这五个子卷积网络与conv4子网络加起来共6个，其feature map 大小是不同的，在图中已经标注出来，这些feature map分别送入一个子网络，在图中使用虚线框圈住，并联合初始输入数据blobdata，用于生成prior box，坐标loc以及分类置信度conf 三组数据（每组当然是6个），然后这三组数据分别concatenate形成三个blob，并联合初始输入数据label，送入最后一个Layer。当然conv4_3的数据还经过了normalization，因为这个feature map尺寸较大。
 那么接下来以conv4_3和fc7为例分析SSD是如何将不同size的feature map组合在一起进行prediction。下图展示了conv4_3和fc7合并在一起的过程中shape变化（其他层类似，考虑到图片大小没有画出来，请脑补）。
-<div align=center><img src="./images/ssd_dataflow.jpg" width = "1215" height = "593" align=center/></div>
-**注意**：mbox_loc输出的维度为（1，4w1h1+6w1h1..., 4）,而不是上图中的（1，16w1h1+24w1h1）
+<div align=center><img src="./images/ssd_dataflows.jpg" width = "1215" height = "593" align=center/></div>
 &ensp;&ensp;&ensp;&ensp;1）对于conv4_3 feature map，conv4_3_norm_priorbox（priorbox层）设置了每个点共有4个prior box。由于SSD 300共有21个分类，所以conv4_3_norm_mbox_conf的channel值为num_priorbox&times;num_class = 4&times;21 = 84；而每个prior box都要回归出4个位置变换量，所以conv4_3_norm_mbox_loc的channel值为4&times;4 = 16。conv4_3_norm_priorbox的两个channel分别存储priorbox的4个坐标和对应的4个variance参数，其实这4个variance参数是四个固定值，对于所有的priorbox都一样，为[0.1, 0.1, 0.2, 0.2]。
 &ensp;&ensp;&ensp;&ensp;2）fc7每个点有6个prior box，其他feature map同理。
 &ensp;&ensp;&ensp;&ensp;3）经过一系列上图展示的caffe blob shape变化后，最后拼接成mbox_conf和mbox_loc。而mbox_conf后接reshape，再进行softmax。
