@@ -490,6 +490,15 @@ target的获取定义在utils/datasets.py中的ListDataset类中，其主要代�
         self.batch_count += 1
         return paths, imgs, targets
 ```
+参考：
+  &ensp;https://arxiv.org/abs/1506.02640
+  &ensp;https://arxiv.org/abs/1612.08242
+  &ensp;https://arxiv.org/abs/1804.02767
+  &ensp;https://github.com/eriklindernoren/PyTorch-YOLOv3
+  
+ 
+  
+ **注**：此博客内容为原创，转载请说明出处
 
 
 
