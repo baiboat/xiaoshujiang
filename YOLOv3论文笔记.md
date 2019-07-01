@@ -24,7 +24,7 @@ grammar_cjkRuby: true
 由上述代码可以看出，其使用Darknet类来进行模型构建，在分析其构建代码之前首先来看看其主干网络**Darknet-53**和整体网络的模型结构，其结构分别如下图所示：
 <div align=center><img src="./images/darknet53.png" width = "357" height = "495" align=center/></div>
 从上图可以看出，**Darknet-53**主要借鉴了**resnet**的思想使用残差结构，**注意**上图中的输入大小是256&times;256，共经过32次降采样，其最后的输出特征图的大小为8&times;8,并且最后使用了**Avgpool**和**softmax**，**Darknet-53**的分类效果甚至超过了RseNet-101,并且速度是其1.5倍，感觉其就算单独出一片论文也不为过啊，而在**YOLOv3**中的输入大小为416&times;416,因此其最后的输出大小为13&times;13,也就是相当于将原始图片分为了13&times;13的**cell**。
-<div align=center><img src="./images/yolov3_architecture_1.png" width = "1224" height = "693" align=center/></div>
+<div align=center><img src="./images/yolov3_network.png" width = "1224" height = "693" align=center/></div>
 从上图可以看出**YOLOv3**共使用了三个尺寸的特征图13&times;13,26&times;26,52&times;52来进行检测,每一个尺度特征图的**cell**中都分别生成三个尺寸的bounding box priors，共有九个尺寸的bounding box priors，这九个box也是从coco数据集中聚类得到的。
 
 <div align=center><img src="./images/yolo_anchor.jpg" width = "992" height = "109" align=center/></div>
@@ -296,8 +296,8 @@ grammar_cjkRuby: true
 				return output, total_loss
 ```
 从上述代码可以看出，首先将预测的输出维度[num_sample, grid_size, grid_size, 255]维度转换为[num_sample, num_anchors, grid_size, grid_size, 85],其中最后一个维度85中分别代表[x_center, y_center, w, h, conf, cls_pred]。然后将x_center, y_center, pred_conf, cls_pred分别使用sigmoid函数归一化到(0,1)，这也是因为yolov3中对这几项使用的是逻辑回归，它们对应的损失函数也因此是交叉熵而不是均方差函数。然后因为预测得到的中心点坐标(x, y)是相对于某个cell的在(0,1)之间的偏移值，预测得到的(w, h)是相对于对应特征图大小的anchor_w,anchor_h的缩放值，所以需要将其还原到原图大小，即：
-$$ \hat{G_x} = P_x + grid_x  $$
-$$ \hat{G_y} = P_y + grid_y  $$
+$$ \hat{G_x} = P_x + gridsize  $$
+$$ \hat{G_y} = P_y + gridsize  $$
 $$ anchor_w, anchor_h = (anchor_w, anchor_h) / stride $$
 $$ \hat{G_w} = exp(P_w)anchor_w  $$
 $$ \hat{G_h} = exp(P_h)anchor_h  $$
@@ -363,13 +363,13 @@ $$ \hat{G_h} = exp(P_h)anchor_h  $$
 		return iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf
 ```
 上面的代码首先初始化了obj_mask,noobj_mask,......的值，然后分别计算了每一个pred_box与target中传来的ground_truth的iou值，对于每一个cell中，只将ground_truth中心点所在的cell中与其iou最大的pred_box的obj_mask的值设置为1，也就是说在训练计算loss_conf_obj的时候只有中心点所在的cell中与其iou最大的pred_box参与计算，并且将其对应的noobj_mask的值设置为0，而且将其它的ground_truth中心点所在的cell中与其iou超过阈值的pred_box也设置为0，也就是说在训练计算loss_conf_noobj的时候包含所有不含有ground_truth中心点的cell和含有ground_truth中心点的cell中iou小于阈值的pred_box。并且在最后的tcof设置为tconf为obj_mask的值，这也就对应了在计算loss时的$C_i$值为0或者1，在yolov1中定义了$C_i$的值如下：
-$$ c_i = P{r}(Class_{i}|Object)\times;P_{r}(Object)\times;IOU_{pred}^{truth} = P_{r}(Class_i)\times;IOU_{pred}{truth} $$
+$$ c_i = P{r}(Class_{i}|Object)\timesP_{r}(Object)\timesIOU_{pred}^{truth} = P_{r}(Class_i)\timesIOU_{pred}{truth} $$
 因为在训练的时候我们期望的是pred_box有物体时$P_{r}(Class_i)$为1，没有物体是为0，而且所有的预测有物体的$IOU_{pred}{truth}$都应该为1，所以$C_i$值为0或者1。
 yolov1中给出的loss计算公式如下：
 <div align=center><img src="./images/yolo_loss.png" width = "662" height = "455" align=center/></div>
 **不过在YOLOv3**中的loss_conf_obj,loss_conf_noobj,loss_cls都使用了交叉熵而不是均方差，即使用了逻辑回归。
 在上面计算的时候传入了target值，这个值包含的是ground_truth的相关信息，这里的target包含的都是归一化的值，从上面代码中可以看出，首先对这些归一化的值分别乘了nG，也就是grid_size的大小，然后计算了偏移和放缩值，注意这里传入的anchor也是相对于特征图大小的，计算如下：
-$$ g_{x}, g_{y}, g_{w}, g_{h} = [x, y, w, h]\times;grid_size  $$
+$$ g_{x}, g_{y}, g_{w}, g_{h} = [x, y, w, h]\timesgridsize  $$
 $$ anchor_{w}, anchor_{h} = (anchor_{w}, anchor_{h})/stride $$
 $$ t_{x} = g_{x} - \lfloor{g_{x}}\rfloor $$
 $$ t_{y} = g_{y} - \lfloor{g_{y}}\rfloor $$
